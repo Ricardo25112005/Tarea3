@@ -23,7 +23,7 @@ Pair * createPair( char * key,  void * value) {
     return new;
 }
 
-long hash( char * key, long capacity) {
+long hash(char * key, long capacity) {
     unsigned long hash = 0;
      char * ptr;
     for (ptr = key; *ptr != '\0'; ptr++) {

@@ -10,13 +10,32 @@
 
 //codigo para ejecutar el programa.    gcc -o tarea2 main.c TDAS/List.c TDAS/Map.c TDAS/Extra.c 
 typedef struct {
-  char id[50];           
-  List *artists;
-  char album_name[201];  
-  char track_name[201];  
-  int tempo;           
-  char track_genre[101];  
-} tipoCancion;
+  char id[10];           
+  char room_name[301];   
+  char description[301]; 
+  char abajo[10];
+  char arriba[10];
+  char izquierda[10];
+  char derecha[10];           
+  List *items; // Lista de items
+  char is_final[10]; // Indica si es un escenario final
+} tipoEscenario;
+
+typedef struct {
+  char id[10];                     // ID del escenario actual
+  char nombre[201];           // Nombre del escenario
+  char descripcion[501];        // Descripción del escenario
+  List *items;           // Lista de items en el escenario     
+  int tiempo_restante;        // Tiempo restante en el escenario
+  List *inventario;           // Inventario del jugador (ítems recogidos)
+  int peso_total;             // Peso total de los ítems en el inventario
+  int puntaje_acumulado;      // Puntaje acumulado del jugador
+  char arriba[10];                 // ID del escenario al que se puede ir arriba (-1 si no disponible)
+  char abajo[10];                  // ID del escenario al que se puede ir abajo (-1 si no disponible)
+  char izquierda[10];              // ID del escenario al que se puede ir a la izquierda (-1 si no disponible)
+  char derecha[10];           // ID del escenario al que se puede ir a la derecha (-1 si no disponible) 
+  char is_final[10];             // Indica si es un escenario final
+} EstadoActual;
 
 void limpiarPantalla() { system("clear"); }
 
@@ -30,293 +49,157 @@ void presioneTeclaParaContinuar() {
 void mostrarMenuPrincipal() {
   limpiarPantalla();
   puts("========================================");
-  puts("     Base de Datos de Canciones");
+  puts("     Opciones del jugador");
   puts("========================================");
+  puts("1) Recoger item");
+  puts("2) Descartar item");
+  puts("3) Avanzar en escenario");
+  puts("4) Reiniciar partida");
+  puts("5) Salir");
+}
 
-  puts("1) Cargar Canciones");
-  puts("2) Buscar por id");
-  puts("3) Buscar por artista");
-  puts("4) Buscar por género");
-  puts("5) Buscar por Tempo");
-  puts("6) Salir");
+void mostrarMenuInicial() {
+  limpiarPantalla();
+  puts("========================================");
+  puts("     Opciones del juego");
+  puts("========================================");
+  puts("1) Leer escenarios");
+  puts("2) Iniciar partida");
+  puts("3) Salir");
 }
 
 // Función para cargar canciones desde un archivo CSV
-void cargar_Canciones(HashMap *canciones_id, HashMap *canciones_genres, HashMap *canciones_artist, List *lista_lentas, List *lista_moderadas, List *lista_rapidas) {
-  limpiarPantalla();
-  // Abre el archivo CSV en modo lectura
-  FILE *archivo = fopen("Data/song_dataset_.csv", "r");
+void leer_escenarios(HashMap *escenarios, EstadoActual *escenario_actual) {
+  // Intenta abrir el archivo CSV que contiene datos de películas
+  FILE *archivo = fopen("Data/graphquest.csv", "r");
   if (archivo == NULL) {
     perror(
         "Error al abrir el archivo"); // Informa si el archivo no puede abrirse
     return;
   }
+
   char **campos;
-  // Leer y parsear una línea del archivo CSV. La función devuelve un arreglo de
-  // strings, donde cada elemento del arreglo repesenta un campo de la linea csv.
-  campos = leer_linea_csv(archivo, ',');
-  // Lee cada línea del archivo CSV hasta el final y guarda los datos en las variables del struct
+  // Leer y parsear una línea del archivo CSV. La función devuelve un array de
+  // strings, donde cada elemento representa un campo de la línea CSV procesada.
+  campos = leer_linea_csv(archivo, ','); // Lee los encabezados del CSV
+  int contador = 1;
+
+  // Lee cada línea del archivo CSV hasta el final
   while ((campos = leer_linea_csv(archivo, ',')) != NULL) {
-    tipoCancion *Cancion = (tipoCancion *)malloc(sizeof(tipoCancion)); // Reserva memoria para una nueva canción
-    strcpy(Cancion->id, campos[1]); // Almacena el id de la funckion utilizando la funcion strcpy para copiar el string       
-    strcpy(Cancion->album_name, campos[3]); // Almacena el nombre del album utilizando la funcion strcpy para copiar el string     
-    strcpy(Cancion->track_name, campos[4]); // Almacena el nombre de la cancion utilizando la funcion strcpy para copiar el string
-    strcpy(Cancion->track_genre, campos[20]); // Almacena el genero de la cancion utilizando la funcion strcpy para copiar el string 
-    Cancion->artists = split_string(campos[2], ";");  // Divide la cadena de artistas en una lista y se guarda la lista en el campo artists     
-    Cancion->tempo = atoi(campos[18]); //se almacena el tempo de la cancion utilizando la funcion atoi para convertir el string a un entero
-    // Agrega la cancion al mapa de canciones por ID
-    insertMap(canciones_id, Cancion->id, Cancion);
+    tipoEscenario *escenario = malloc(sizeof(tipoEscenario));
+    if (escenario == NULL) {
+      perror("Error al asignar memoria para el escenario");
+      fclose(archivo);
+      return;
+    }
+    strcpy(escenario->id, campos[0]);
+    strcpy(escenario->room_name, campos[1]);
+    strcpy(escenario->description, campos[2]);
+    escenario->items = split_string(campos[3], ";");
+    strcpy(escenario->arriba, campos[4]);
+    strcpy(escenario->abajo, campos[5]);
+    strcpy(escenario->izquierda, campos[6]);
+    strcpy(escenario->derecha, campos[7]);
+    strcpy(escenario->is_final, campos[8]);
+    printf("ID: %s\n", escenario->id);
+    printf("Nombre: %s\n", escenario->room_name);
+    printf("Descripción: %s\n", escenario->description);
 
-    
-    // Obtiene el genero de la cancion y verifica si este ya existe en el mapa de canciones por genero
-    Pair *genre_pair = searchMap(canciones_genres, Cancion->track_genre);
-    // Si el genero no existe en el mapa, crea una nueva lista para este genero, agrega la cancion a la lista e inserta la lista en el mapa por genero
-    if (genre_pair == NULL) {
-      List *new_list = list_create();
-      list_pushBack(new_list, Cancion);
-      insertMap(canciones_genres, Cancion->track_genre, new_list);
+
+    if (escenario->items != NULL) {
+      printf("Items: \n");
+      for(char *item = list_first(escenario->items); item != NULL; 
+      item = list_next(escenario->items)){
+      List* values = split_string(item, ",");
+      char* item_name = list_first(values);
+      int item_value = atoi(list_next(values));
+      int item_weight = atoi(list_next(values));
+      printf("  - %s (%d pts, %d kg)\n", item_name, item_value, item_weight);
     }
-    // Si el genero ya eciste en el mapa, se obtiene la lista y se agrega la cancion a la lista de este genero
-    else {
-      List *genre_list = (List *)genre_pair->value;
-      list_pushBack(genre_list, Cancion);
-    }
-    // Obtiene el primer artista de la cancion
-    char *artist = list_first(Cancion->artists);
-    // Recorre la lista de artistas y verifica para cada artista si este ya existe en el mapa de canciones por artista
-    // Si el artista no existe en el mapa, crea una nueva lista para este artista, agrega la cancion a la lista e inserta la lista en el mapa por artista
-    // Si el artista ya existe en el mapa, se obtiene la lista y se agrega la cancion a la lista de este artista
-    while (artist != NULL) {
-        Pair *artist_pair = searchMap(canciones_artist, artist);
-        if (artist_pair == NULL) {
-            List *nueva_list = list_create();
-            list_pushBack(nueva_list, Cancion);
-            insertMap(canciones_artist, strdup(artist), nueva_list);
-        } else {
-            List *artist_list = (List *)artist_pair->value;
-            list_pushBack(artist_list, Cancion);
-        }
-        artist = list_next(Cancion->artists);
-    }
-    // Clasifica la cancion en una de los tres tipos de tempo, si el tempo es menor a 60 se clasifica como lenta, si el tempo es mayor o igual a 60 y menor o igual a 120 se clasifica
-    // como moderada, si el tempo es mayor a 120 se clasifica como rapida
-    if (Cancion->tempo < 60) {
-      list_pushBack(lista_lentas, Cancion); // Agrega a la lista de lentas
-    } else if (Cancion->tempo >= 60 && Cancion->tempo <= 120) {
-      list_pushBack(lista_moderadas, Cancion); // Agrega a la lista de moderadas
     } else {
-      list_pushBack(lista_rapidas, Cancion); // Agrega a la lista de rápidas
+      printf("No hay items disponibles.\n");
     }
+    if (strcmp(escenario->arriba, "-1") != 0) printf("Arriba: %s\n", escenario->arriba);
+    if (strcmp(escenario->abajo, "-1") != 0) printf("Abajo: %s\n", escenario->abajo);
+    if (strcmp(escenario->izquierda, "-1") != 0) printf("Izquierda: %s\n", escenario->izquierda);
+    if (strcmp(escenario->derecha, "-1") != 0) printf("Derecha: %s\n", escenario->derecha);
+    if (strcmp(escenario->is_final, "Si") == 0) printf("Es final\n");
+    if (contador == 1) {
+      strcpy(escenario_actual->id, escenario->id);
+      strcpy(escenario_actual->nombre, escenario->room_name);
+      strcpy(escenario_actual->descripcion, escenario->description);
+      escenario_actual->items = split_string(campos[3], ";");
+      strcpy(escenario_actual->arriba, escenario->arriba);
+      strcpy(escenario_actual->abajo, escenario->abajo);
+      strcpy(escenario_actual->izquierda, escenario->izquierda);
+      strcpy(escenario_actual->derecha, escenario->derecha);
+      strcpy(escenario_actual->is_final, escenario->is_final);
+    }
+    insertMap(escenarios, escenario->id, escenario);
   }
-  // Se muestra un mensaje indicando que las canciones fueron cargadas correctamente y cierra el archivo despues de leer todas las lineas
-  puts("========================================");
-  puts("Las canciones han sido cargadas correctamente.");
-  fclose(archivo);
+  fclose(archivo); // Cierra el archivo después de leer todas las líneas
+  presioneTeclaParaContinuar();
 }
 
-// Funcion para buscar una cancion por id
-void buscar_id(HashMap *canciones_id) {
-  limpiarPantalla();
-  puts("========================================");
-  // Se declara una variable de tipo char para almacenar el id buscado
-  // Se le pide al usuario que ingrese el id de la cancion que desea buscar y se almacena en la variable id
-  char id[50];
-  printf("Ingrese el ID de la canción: ");
-  scanf("%s", id);
-  // Se busca la cancion en el mapa de canciones por id utilizando la funcion searchMap
-  Pair *pair = searchMap(canciones_id, id);
-  // Si la cancion existe en el mapa, se obtiene la cancion y se imprimen sus datos
-  if (pair != NULL) {
-    tipoCancion *cancion = pair->value;
-    printf("ID: %s, Álbum: %s, Titulo: %s, Género: %s, Tempo: %d\n", cancion->id, cancion->album_name, cancion->track_name, cancion->track_genre ,cancion->tempo);
-    // Se recorre la lista de artistas de la cancion imprimiendo el nombre de cada artista
-    printf("Artista(s): ");
-    for(char *artista = (char *) list_first(cancion->artists); artista != NULL; artista = list_next(cancion->artists)){
-      printf("%s    ", artista);
-    }
-    printf("\n");
-  }
-  // Si la cancion no existe en el mapa, se imprime un mensaje indicando que no se encontro alguna cancion con ese id 
-  else {
-    puts("No se encontró ninguna canción con ese ID.");
-  }
-}
-
-// Función para buscar una cancion por genero
-void buscar_genero(HashMap *canciones_genres) {
-  limpiarPantalla();
-  puts("========================================");
-  // Se declara una variable de tipo char para almacenar el genero buscado
-  // Se le pide al usuario que ingrese el genero buscado y se almacena en la variable genero
-  char genero[50];
-  printf("Ingrese el género de la canción: ");
-  scanf("%s", genero);
-  puts("Canciones encontradas:");
-  // Se busca la lista de canciones del genero en el mapa de canciones por genero utilizando la funcion searchmap
-  Pair *pair = searchMap(canciones_genres, genero);
-  // Si la lista de canciones del genero existe en el mapa, se obtiene la lista y se recorre la lista imprimiendo los datos de cada cancion
-  if (pair != NULL) {
-    List *lista = (List *)pair->value;
-    tipoCancion *cancion = list_first(lista);
-    while (cancion != NULL) {
-      printf("ID: %s, Álbum: %s, Titulo: %s, Género: %s, Tempo: %d\n", cancion->id, cancion->album_name, cancion->track_name, cancion->track_genre ,cancion->tempo);
-      // Se recorre la lista de artistas de la cancion imprimiendo el nombre de cada artista
-      printf("Artista(s): ");
-      for(char *artista = (char *) list_first(cancion->artists); artista != NULL; artista = list_next(cancion->artists)){
-        printf("%s    ", artista);
-      }
-      printf("\n");
-      cancion = list_next(lista); // Avanza al siguiente elemento en la lista
-    }
-  } else {
-    puts("No se encontró ninguna canción con ese género.");
-  }
-}
-
-// Función para buscar canciones por artista
-void buscar_artista(HashMap *canciones_artist) {
-  limpiarPantalla();
-  puts("========================================");
-  // Se declara una variable de tipo char para almacenar el artista buscado
-  // Se le pide al usuario que ingrese el artista buscado y se almacena en la variable artista
-  char artista[50];
-  printf("Ingrese el artista: ");
-  scanf(" %[^\n]50s", artista);
-  puts("Canciones encontradas:");
-  // Se busca la lista de canciones del artista en el mapa de canciones por artista utilizando la funcion searchMap
-  Pair *pair = searchMap(canciones_artist, strdup(artista));
-  // Si la lista de canciones del artista existe en el mapa, se obtiene la lista y se recorre la lista imprimiendo los datos de cada cancion del artista
-  if (pair != NULL) {
-    List *lista = (List *)pair->value;
-    tipoCancion *cancion = list_first(lista);
-    while (cancion != NULL) {
-      printf("ID: %s, Álbum: %s, Titulo: %s, Género: %s, Tempo: %d\n", cancion->id, cancion->album_name, cancion->track_name, cancion->track_genre ,cancion->tempo);
-      printf("Artista(s): ");
-      for(char *artista = (char *)list_first(cancion->artists); artista != NULL; artista = list_next(cancion->artists)){
-        printf("%s   ", artista);
-      }
-      printf("\n");
-      cancion = list_next(lista); // Avanza al siguiente elemento en la lista
-    }
-    printf("\n");
-  } 
-  // Si la lista de canciones del artista no existe en el mapa, se imprime un mensaje indicando que no se encontro ninguna cancion con ese artista
-  else {
-    puts("No se encontró ninguna canción de ese artista.");
-  }
-}
-
-// Función para buscar canciones por tempo
-void buscar_tempo(List *lista_lentas, List *lista_moderadas, List *lista_rapidas) {
-  limpiarPantalla();
-  // Se declara una variable de tipo int para almacenar el tempo deseado
-  // Se le pide al usuario que ingrese el tempo deseado y se almacena en la variable tempo_deseado
-  int tempo_deseado;
-  puts("========================================");
-  printf("Velocidad de tempo deseada(1 = lenta, 2 = moderada, 3 = rapida): ");
-  scanf("%d", &tempo_deseado);
-  // Se verifica si el tempo deseado es valido, si no es valido se imprime un mensaje indicando que la opcion no es valida
-  // y se retorna de la funcion sin hacer nada
-  if (tempo_deseado < 1 || tempo_deseado > 3) {
-    puts("Opción no válida. Por favor, elija entre 1 y 3.");
+void iniciar_partida(HashMap *escenarios, EstadoActual *escenario_actual) {
+  char opcion;
+  if (strcmp(escenario_actual->is_final, "Si") == 0) {
+    puts("se ha llegado al final del juego");
+    printf("Puntaje total: %d\n", escenario_actual->puntaje_acumulado);
+    printf("Tiempo restante: %d\n", escenario_actual->tiempo_restante);
+    printf("Peso total: %d\n", escenario_actual->peso_total);
     return;
   }
-  // Si el tempo deseado es 1, se imprime la lista de canciones lentas, mostrando los datos de cada cancion
-  if (tempo_deseado == 1) {
-    puts("Canciones lentas:");
-    tipoCancion *cancion = list_first(lista_lentas);
-    while (cancion != NULL) {
-      printf("ID: %s, Álbum: %s, Titulo: %s, Género: %s, Tempo: %d\n", cancion->id, cancion->album_name, cancion->track_name, cancion->track_genre ,cancion->tempo);
-      printf("Artista(s): ");
-      for(char *artista = (char *) list_first(cancion->artists); artista != NULL; artista = list_next(cancion->artists)){
-        printf("%s    ", artista);
-      }
-      printf("\n");
-      cancion = list_next(lista_lentas); // Avanza al siguiente elemento en la lista
-    }
-  }
-  // Si el tempo deseado es 2, se imprime la lista de canciones moderadas, mostrando los datos de cada cancion
-  else if (tempo_deseado == 2) {
-    puts("Canciones moderadas:");
-    tipoCancion *cancion = list_first(lista_moderadas);
-    while (cancion != NULL) {
-      printf("ID: %s, Álbum: %s, Titulo: %s, Género: %s, Tempo: %d\n", cancion->id, cancion->album_name, cancion->track_name, cancion->track_genre ,cancion->tempo);
-      printf("Artista(s): ");
-      for(char *artista = (char *) list_first(cancion->artists); artista != NULL; artista = list_next(cancion->artists)){
-        printf("%s    ", artista);
-      }
-      printf("\n");
-      cancion = list_next(lista_moderadas); // Avanza al siguiente elemento en la lista
-    }
-
-  } 
-  // Si el tempo deseado es 3, se imprime la lista de canciones rapidas, mostrando los datos de cada cancion
-  else {
-    puts("Canciones rápidas:");
-    tipoCancion *cancion = list_first(lista_rapidas);
-    while (cancion != NULL) {
-      printf("ID: %s, Álbum: %s, Titulo: %s, Género: %s, Tempo: %d\n", cancion->id, cancion->album_name, cancion->track_name, cancion->track_genre ,cancion->tempo);
-      printf("Artista(s): ");
-      for(char *artista = (char *) list_first(cancion->artists); artista != NULL; artista = list_next(cancion->artists)){
-        printf("%s    ", artista);
-      }
-      printf("\n");
-      cancion = list_next(lista_rapidas); // Avanza al siguiente elemento en la lista
-    }
-  }
-}
-
-int main() {
-  char opcion; // Variable para almacenar una opción ingresada por el usuario
-
-  // se crean los mapas y listas necesarias para almacenar las canciones
-  HashMap *canciones_id = createMap(160000); // Mapa para almacenar canciones por ID
-  HashMap *canciones_genres = createMap(160000); // Mapa para almacenar canciones por género
-  HashMap *canciones_artist = createMap(160000); // Mapa para almacenar canciones por artista
-  List *lista_lentas = list_create(); // Lista para almacenar canciones lentas
-  List *lista_moderadas = list_create(); // Lista para almacenar canciones moderadas
-  List *lista_rapidas = list_create(); // Lista para almacenar canciones rápidas
-
-  //se muestra el menu principal y se le pide al usuario que ingrese una opcion
-  // Se utiliza un bucle do-while para mostrar el menú y ejecutar la opción seleccionada por el usuario hasta que el usario elija salir
-  do {  
+  do {
     mostrarMenuPrincipal();
     printf("Ingrese su opción: ");
     scanf(" %c", &opcion);
 
     switch (opcion) {
     case '1':
-      // Carga las canciones desde el archivo CSV y las almacena en los mapas y listas
-      cargar_Canciones(canciones_id, canciones_genres, canciones_artist, lista_lentas, lista_moderadas, lista_rapidas);
+      //recoger_item(escenario_actual);
       break;
     case '2':
-      // Busca una canción por ID
-      buscar_id(canciones_id);
+      //descartar_item(escenario_actual);
       break;
     case '3':
-      // Busca canciones por artista
-      buscar_artista(canciones_artist);
+      //avanzar_escenario(escenario_actual);
       break;
     case '4':
-      // Busca canciones por género
-      buscar_genero(canciones_genres);
-      break;
-    case '5':
-      // Busca canciones por tempo
-      buscar_tempo(lista_lentas, lista_moderadas, lista_rapidas);
+      //reiniciar_partida(escenario_actual);
       break;
     }
-  presioneTeclaParaContinuar();
-  } while (opcion != '6');
+    presioneTeclaParaContinuar();
+  } while (opcion != '5');
+}
+
+int main() {
+  char opcion; // Variable para almacenar una opción ingresada por el usuario
+  HashMap *escenarios = createMap(20); // Lista para almacenar el escenario actual
+  EstadoActual *estado_actual = malloc(sizeof(EstadoActual));
+  do{
+    mostrarMenuInicial();
+    printf("Ingrese su opción: ");
+    scanf(" %c", &opcion);
+    switch (opcion) {
+      case '1':
+        leer_escenarios(escenarios, estado_actual); // Llama a la función para leer los escenarios desde el archivo CSV
+        break;
+      case '2':
+        iniciar_partida(escenarios, estado_actual); // Llama a la función para iniciar la partida
+        break;
+    }
+  }while (opcion != '3');
   
   // Libera la memoria utilizada
-  list_clean(lista_lentas);
+  /*list_clean(lista_lentas);
   list_clean(lista_moderadas);
   list_clean(lista_rapidas);
   limpiarPantalla();
+  */
   // Se imprime un mensaje de despedida
+  limpiarPantalla();
   puts("========================================");
   puts("Gracias por usar el programa. ¡Hasta luego!");
   return 0;
 }
-  
