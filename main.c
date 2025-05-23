@@ -11,31 +11,35 @@
 //codigo para ejecutar el programa.    gcc -o tarea2 main.c TDAS/List.c TDAS/Map.c TDAS/Extra.c 
 typedef struct {
   char id[10];           
-  char room_name[301];   
-  char description[301]; 
+  char room_name[501];   
+  char description[501]; 
   char abajo[10];
   char arriba[10];
   char izquierda[10];
   char derecha[10];           
   List *items; // Lista de items
   char is_final[10]; // Indica si es un escenario final
-} tipoEscenario;
+} tipoGuardado;
+
 
 typedef struct {
-  char id[10];                     // ID del escenario actual
-  char nombre[201];           // Nombre del escenario
-  char descripcion[501];        // Descripción del escenario
-  List *items;           // Lista de items en el escenario     
+  char id[10];           
+  char room_name[501];   
+  char description[501]; 
+  struct tipoEscenario *conexiones[4];          
+  List *items; // Lista de items
+  char is_final[10]; // Indica si es un escenario final
+} tipoEscenario;
+
+
+
+typedef struct { 
   int tiempo_restante;        // Tiempo restante en el escenario
   List *inventario;           // Inventario del jugador (ítems recogidos)
   int peso_total;             // Peso total de los ítems en el inventario
   int puntaje_acumulado;      // Puntaje acumulado del jugador
-  char arriba[10];                 // ID del escenario al que se puede ir arriba (-1 si no disponible)
-  char abajo[10];                  // ID del escenario al que se puede ir abajo (-1 si no disponible)
-  char izquierda[10];              // ID del escenario al que se puede ir a la izquierda (-1 si no disponible)
-  char derecha[10];           // ID del escenario al que se puede ir a la derecha (-1 si no disponible) 
-  char is_final[10];             // Indica si es un escenario final
-} EstadoActual;
+  tipoEscenario *escenario_actual; // Escenario actual del jugador
+} tipoJugador;
 
 void limpiarPantalla() { system("clear"); }
 
@@ -69,7 +73,7 @@ void mostrarMenuInicial() {
 }
 
 // Función para cargar canciones desde un archivo CSV
-void leer_escenarios(HashMap *escenarios, EstadoActual *escenario_actual) {
+void leer_escenarios(HashMap *escenarios, tipoJugador *escenario_actual, List *escenarios_list) {
   // Intenta abrir el archivo CSV que contiene datos de películas
   FILE *archivo = fopen("Data/graphquest.csv", "r");
   if (archivo == NULL) {
@@ -86,7 +90,7 @@ void leer_escenarios(HashMap *escenarios, EstadoActual *escenario_actual) {
 
   // Lee cada línea del archivo CSV hasta el final
   while ((campos = leer_linea_csv(archivo, ',')) != NULL) {
-    tipoEscenario *escenario = malloc(sizeof(tipoEscenario));
+    tipoGuardado *escenario = malloc(sizeof(tipoGuardado));
     if (escenario == NULL) {
       perror("Error al asignar memoria para el escenario");
       fclose(archivo);
@@ -124,33 +128,53 @@ void leer_escenarios(HashMap *escenarios, EstadoActual *escenario_actual) {
     if (strcmp(escenario->izquierda, "-1") != 0) printf("Izquierda: %s\n", escenario->izquierda);
     if (strcmp(escenario->derecha, "-1") != 0) printf("Derecha: %s\n", escenario->derecha);
     if (strcmp(escenario->is_final, "Si") == 0) printf("Es final\n");
-    if (contador == 1) {
-      strcpy(escenario_actual->id, escenario->id);
-      strcpy(escenario_actual->nombre, escenario->room_name);
-      strcpy(escenario_actual->descripcion, escenario->description);
-      escenario_actual->items = split_string(campos[3], ";");
-      strcpy(escenario_actual->arriba, escenario->arriba);
-      strcpy(escenario_actual->abajo, escenario->abajo);
-      strcpy(escenario_actual->izquierda, escenario->izquierda);
-      strcpy(escenario_actual->derecha, escenario->derecha);
-      strcpy(escenario_actual->is_final, escenario->is_final);
-    }
+    else printf("No es final\n");
+    printf("========================================\n");
     insertMap(escenarios, escenario->id, escenario);
+
   }
   fclose(archivo); // Cierra el archivo después de leer todas las líneas
+  Pair *pair = firstMap(escenarios);
+  while (pair != NULL) {
+    // Crear un nuevo tipoEscenario
+    tipoGuardado *actual = (tipoGuardado *)pair->value;
+    tipoEscenario *nuevo = malloc(sizeof(tipoEscenario));
+    if (nuevo == NULL) {
+        perror("Error al asignar memoria para el nuevo escenario");
+        return;
+    }
+    strcpy(nuevo->id, actual->id);
+    strcpy(nuevo->room_name, actual->room_name);
+    strcpy(nuevo->description, actual->description);
+    strcpy(nuevo->is_final, actual->is_final);
+    if (actual->items != NULL) {
+        nuevo->items = list_create();
+        for (char *item = list_first(actual->items); item != NULL; item = list_next(actual->items)) {
+          list_pushBack(nuevo->items, strdup(item)); // Copiar cada item
+        }
+    } else {
+        nuevo->items = NULL;
+    }
+    for (int i = 0; i < 4; i++) {
+        nuevo->conexiones[i] = NULL;
+    }
+    list_pushBack(escenarios_list, nuevo);
+    pair = nextMap(escenarios);
+  }
   presioneTeclaParaContinuar();
 }
 
-void iniciar_partida(HashMap *escenarios, EstadoActual *escenario_actual) {
+void iniciar_partida(HashMap *escenarios, tipoJugador *actual) {
   char opcion;
-  if (strcmp(escenario_actual->is_final, "Si") == 0) {
-    puts("se ha llegado al final del juego");
-    printf("Puntaje total: %d\n", escenario_actual->puntaje_acumulado);
-    printf("Tiempo restante: %d\n", escenario_actual->tiempo_restante);
-    printf("Peso total: %d\n", escenario_actual->peso_total);
-    return;
-  }
   do {
+    /*if (strcmp(actual->escenario_actual->is_final, "Si") == 0) {
+      puts("se ha llegado al final del juego");
+      printf("Puntaje total: %d\n", actual->puntaje_acumulado);
+      printf("Tiempo restante: %d\n", actual->tiempo_restante);
+      printf("Peso total: %d\n", actual->peso_total);
+      presioneTeclaParaContinuar();
+      return;
+    }*/
     mostrarMenuPrincipal();
     printf("Ingrese su opción: ");
     scanf(" %c", &opcion);
@@ -176,14 +200,15 @@ void iniciar_partida(HashMap *escenarios, EstadoActual *escenario_actual) {
 int main() {
   char opcion; // Variable para almacenar una opción ingresada por el usuario
   HashMap *escenarios = createMap(20); // Lista para almacenar el escenario actual
-  EstadoActual *estado_actual = malloc(sizeof(EstadoActual));
+  tipoJugador *estado_actual = malloc(sizeof(tipoJugador));
+  List *escenarios_list = list_create(); // Lista para almacenar los escenarios
   do{
     mostrarMenuInicial();
     printf("Ingrese su opción: ");
     scanf(" %c", &opcion);
     switch (opcion) {
       case '1':
-        leer_escenarios(escenarios, estado_actual); // Llama a la función para leer los escenarios desde el archivo CSV
+        leer_escenarios(escenarios, estado_actual, escenarios_list); // Llama a la función para leer los escenarios desde el archivo CSV
         break;
       case '2':
         iniciar_partida(escenarios, estado_actual); // Llama a la función para iniciar la partida
