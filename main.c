@@ -164,7 +164,15 @@ void leer_escenarios(HashMap *escenarios, tipoJugador *escenario_actual, List *e
   presioneTeclaParaContinuar();
 }
 
-void iniciar_partida(HashMap *escenarios, tipoJugador *actual) {
+void reiniciar_partida(tipoJugador *estado_actual, List *escenarios_list) {
+  estado_actual->tiempo_restante = 100; // Reinicia el tiempo restante
+  estado_actual->peso_total = 0; // Reinicia el peso total
+  estado_actual->puntaje_acumulado = 0; // Reinicia el puntaje acumulado
+  estado_actual->inventario = list_create(); // Reinicia el inventario
+  estado_actual->escenario_actual = list_first(escenarios_list); // Reinicia el escenario actual
+}
+
+void iniciar_partida(HashMap *escenarios, tipoJugador *actual, List *escenarios_list) {
   char opcion;
   do {
     /*if (strcmp(actual->escenario_actual->is_final, "Si") == 0) {
@@ -181,16 +189,17 @@ void iniciar_partida(HashMap *escenarios, tipoJugador *actual) {
 
     switch (opcion) {
     case '1':
-      //recoger_item(escenario_actual);
+      //recoger_item(actual);
       break;
     case '2':
-      //descartar_item(escenario_actual);
+      //descartar_item(actual);
       break;
     case '3':
-      //avanzar_escenario(escenario_actual);
+      //avanzar_escenario(actual);
       break;
     case '4':
-      //reiniciar_partida(escenario_actual);
+      reiniciar_partida(actual, escenarios_list);
+      puts("Partida reiniciada.");
       break;
     }
     presioneTeclaParaContinuar();
@@ -211,7 +220,7 @@ int main() {
         leer_escenarios(escenarios, estado_actual, escenarios_list); // Llama a la función para leer los escenarios desde el archivo CSV
         break;
       case '2':
-        iniciar_partida(escenarios, estado_actual); // Llama a la función para iniciar la partida
+        iniciar_partida(escenarios, estado_actual, escenarios_list); // Llama a la función para iniciar la partida
         break;
     }
   }while (opcion != '3');
