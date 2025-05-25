@@ -130,7 +130,6 @@ void reiniciar(Map *escenarios, tipoJugador *estado_actual) {
       }
       list_clean(estado_actual->escenariosVisitados); // Limpiar la lista de escenarios visitados
       free(estado_actual->escenariosVisitados);       // Liberar la lista
-      free(estado_actual); // Liberar la estructura del jugador
   }
 }
 
