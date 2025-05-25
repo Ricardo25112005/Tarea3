@@ -11,13 +11,13 @@
 
 //codigo para ejecutar el programa.    gcc -o tarea3 main.c TDAS/List.c TDAS/Map.c TDAS/Extra.c 
 typedef struct {
-  char id[10];           
-  char room_name[501];   
-  char description[501]; 
-  char abajo[10];
-  char arriba[10];
-  char izquierda[10];
-  char derecha[10];           
+  char id[10];// Identificador del escenario           
+  char room_name[501];// Nombre del escenario
+  char description[501];// descripcion del escenario
+  char abajo[10];//  Direccion
+  char arriba[10];// Direccion
+  char izquierda[10];// Direccion
+  char derecha[10];// Direccion       
   List *items; // Lista de items
   List *itemProcesados;
   char is_final[10]; // Indica si es un escenario final
@@ -36,6 +36,7 @@ typedef struct {
   int peso_total;             // Peso total de los ítems en el inventario
   int puntaje_acumulado;      // Puntaje acumulado del jugador
   tipoGuardado *escenario_actual; // Escenario actual del jugador
+  List *escenariosVisitados;          // Lista de escenarios
 } tipoJugador;
 
 void limpiarPantalla() { system("clear"); }
@@ -53,6 +54,7 @@ int string_equal(void *key1, void *key2) {
 // Función para mostrar el menú principal
 void mostrarMenuPrincipal(tipoJugador *estado_actual) {
   limpiarPantalla();
+  // Muestra el estado actual del jugador y las opciones disponibles
   puts("========================================");
   printf("Estado actual:\n");
   printf("Tiempo restante: %d\n", estado_actual->tiempo_restante);
@@ -64,6 +66,7 @@ void mostrarMenuPrincipal(tipoJugador *estado_actual) {
   for (tipoItem *item = list_first(estado_actual->escenario_actual->itemProcesados); item != NULL; item = list_next(estado_actual->escenario_actual->itemProcesados)) {
     printf("  - %s (%d pts, %d kg)\n", item->nombre, item->valor, item->peso);
   }
+  // Muestra los ítems en el inventario del jugador
   if (list_first(estado_actual->inventario) != NULL) {
     printf("Items en inventario:\n");
     for (tipoItem *item = list_first(estado_actual->inventario); item != NULL; item = list_next(estado_actual->inventario)) {
@@ -98,7 +101,6 @@ void reiniciar(Map *escenarios, tipoJugador *estado_actual) {
   MapPair *pair = map_first(escenarios);
   while (pair) {
       tipoGuardado *escenario = (tipoGuardado *)pair->value;
-
       // Liberar los ítems procesados
       if (escenario->itemProcesados) {
           for (tipoItem *item = list_first(escenario->itemProcesados); item != NULL; item = list_next(escenario->itemProcesados)) {
@@ -107,19 +109,16 @@ void reiniciar(Map *escenarios, tipoJugador *estado_actual) {
           list_clean(escenario->itemProcesados); // Limpiar la lista
           free(escenario->itemProcesados);       // Liberar la lista
       }
-
       // Liberar los ítems originales
       if (escenario->items) {
           list_clean(escenario->items); // Limpiar la lista
           free(escenario->items);       // Liberar la lista
       }
-
       // Liberar el escenario
       free(escenario);
       pair = map_next(escenarios);
   }
   map_clean(escenarios); // Limpiar el mapa de escenarios
-
   // Liberar los recursos del jugador
   if (estado_actual) {
       if (estado_actual->inventario) {
@@ -129,6 +128,8 @@ void reiniciar(Map *escenarios, tipoJugador *estado_actual) {
           list_clean(estado_actual->inventario); // Limpiar la lista
           free(estado_actual->inventario);       // Liberar la lista
       }
+      list_clean(estado_actual->escenariosVisitados); // Limpiar la lista de escenarios visitados
+      free(estado_actual->escenariosVisitados);       // Liberar la lista
       free(estado_actual); // Liberar la estructura del jugador
   }
 }
@@ -157,6 +158,7 @@ void leer_escenarios(Map *escenarios, tipoJugador *escenario_actual) {
       fclose(archivo);
       return;
     }
+    // Asigna los valores de los campos leídos al escenario
     strcpy(escenario->id, campos[0]);
     strcpy(escenario->room_name, campos[1]);
     strcpy(escenario->description, campos[2]);
@@ -166,6 +168,7 @@ void leer_escenarios(Map *escenarios, tipoJugador *escenario_actual) {
     strcpy(escenario->izquierda, campos[6]);
     strcpy(escenario->derecha, campos[7]);
     strcpy(escenario->is_final, campos[8]);
+    // Procesar los items del escenario
     List *listaProcesada = NULL;
     if (list_first(escenario->items) != NULL) {
       listaProcesada = list_create();
@@ -185,13 +188,16 @@ void leer_escenarios(Map *escenarios, tipoJugador *escenario_actual) {
     map_insert(escenarios, escenario->id, escenario);
   }
   fclose(archivo); // Cierra el archivo después de leer todas las líneas
+  // Inicializa el estado del jugador
   escenario_actual->tiempo_restante = 100; // Reinicia el tiempo restante
   escenario_actual->peso_total = 0; // Reinicia el peso total
   escenario_actual->puntaje_acumulado = 0; // Reinicia el puntaje acumulado
   escenario_actual->inventario = list_create(); // Reinicia el inventario
+  escenario_actual->escenariosVisitados = list_create(); // Reinicia la lista de escenarios visitados
   MapPair *pair = map_search(escenarios, "1");
   if (pair != NULL) {
     escenario_actual->escenario_actual = (tipoGuardado *)pair->value;
+    list_pushBack(escenario_actual->escenariosVisitados, escenario_actual->escenario_actual);
   } else {
     printf("Error: Escenario con ID '1' no encontrado.\n");
     return;
@@ -211,7 +217,7 @@ void recoger_items(tipoJugador *estado_actual, Map *escenarios) {
   for (tipoItem *item = list_first(items); item != NULL; item = list_next(items)) {
       printf("%d) %s (%d pts, %d kg)\n", index++, item->nombre, item->valor, item->peso);
   }
-  printf("Ingrese el números del ítem que desea recoger (0 para cancelar):\n");
+  printf("Ingrese el número del ítem que desea recoger (0 para cancelar):\n");
   // Leer la entrada del usuario
   char entrada[256];
   getchar(); // Limpiar el buffer
@@ -241,6 +247,8 @@ void recoger_items(tipoJugador *estado_actual, Map *escenarios) {
       }
       token = strtok(NULL, " ");
   }
+  // Verificar si el tiempo se agotó, en caso de agotarse el timepo se reinicia la partida
+  // y se muestra el puntaje total y los items en el inventario
   if (estado_actual->tiempo_restante <= 0) {
     printf("¡El tiempo se ha agotado! Has perdido.\n");
     printf("Puntaje total: %d\n", estado_actual->puntaje_acumulado);
@@ -255,6 +263,9 @@ void recoger_items(tipoJugador *estado_actual, Map *escenarios) {
   }
 }
 
+
+// Función para descartar ítems del inventario
+// Esta función permite al jugador descartar ítems de su inventario
 void descartar_items(tipoJugador *estado_actual, Map *escenarios) {
   limpiarPantalla();
   if (estado_actual->inventario == NULL || list_first(estado_actual->inventario) == NULL) {
@@ -296,6 +307,7 @@ void descartar_items(tipoJugador *estado_actual, Map *escenarios) {
       }
       token = strtok(NULL, " ");
   }
+  // Verificar si el tiempo se agotó, en caso de agotarse el timepo se reinicia la partida
   if (estado_actual->tiempo_restante <= 0) {
     printf("¡El tiempo se ha agotado! Has perdido.\n");
     printf("Puntaje total: %d\n", estado_actual->puntaje_acumulado);
@@ -311,11 +323,13 @@ void descartar_items(tipoJugador *estado_actual, Map *escenarios) {
 }
 
 
-
+// Función para avanzar en el escenario
+// Esta función permite al jugador avanzar a un nuevo escenario
 void avanzar_escenario(tipoJugador *estado_actual, Map *escenarios) {
   limpiarPantalla();
   printf("Direcciones disponibles:\n");
-  // Mostrar las direcciones disponibles
+  // Mostrar las direcciones disponibles en el escenario actual
+  // y permitir al jugador elegir una dirección para avanzar
   int contador = 0;
   printf("Escenario: %s\n", estado_actual->escenario_actual->id);
   if (strcmp(estado_actual->escenario_actual->arriba, "-1") != 0) {
@@ -355,7 +369,7 @@ void avanzar_escenario(tipoJugador *estado_actual, Map *escenarios) {
   // Calcular el tiempo usado
   int tiempo_usado = (int)ceil((estado_actual->peso_total + 1) / 10.0);
   estado_actual->tiempo_restante -= tiempo_usado;
-  // Verificar si el tiempo se agotó
+  // Verificar si el tiempo se agotó, en caso de agotarse el timepo se reinicia la partida
   if (estado_actual->tiempo_restante <= 0) {
       printf("¡El tiempo se ha agotado! Has perdido.\n");
       printf("Puntaje total: %d\n", estado_actual->puntaje_acumulado);
@@ -373,7 +387,9 @@ void avanzar_escenario(tipoJugador *estado_actual, Map *escenarios) {
   estado_actual->escenario_actual = (tipoGuardado *)pair->value;
   printf("Has avanzado a: %s\n", estado_actual->escenario_actual->room_name);
   printf("Descripción: %s\n", estado_actual->escenario_actual->description);
-  // Verificar si se alcanzó el escenario final
+  list_pushBack(estado_actual->escenariosVisitados, estado_actual->escenario_actual);
+  // Verificar si se alcanzó el escenario final, en caso de alcanzarse se reinicia la partida
+  // y se muestra el puntaje total y los items en el inventario
   if (strcmp(estado_actual->escenario_actual->is_final, "Si") == 0) {
       printf("¡Has alcanzado el escenario final!\n");
       printf("Puntaje total: %d\n", estado_actual->puntaje_acumulado);
@@ -389,14 +405,14 @@ void avanzar_escenario(tipoJugador *estado_actual, Map *escenarios) {
 }
 
 
-
+// Función para iniciar la partida
+// Esta función muestra el menú principal y permite al jugador interactuar con el juego
 void iniciar_partida(Map *escenarios, tipoJugador *actual, List *escenarios_list) {
   char opcion;
   do {
     mostrarMenuPrincipal(actual);
     printf("Ingrese su opción: ");
     scanf(" %c", &opcion);
-
     switch (opcion) {
     case '1':
       recoger_items(actual, escenarios);
@@ -421,6 +437,8 @@ int main() {
   Map *escenarios = map_create(string_equal); // Lista para almacenar el escenario actual
   tipoJugador *estado_actual = malloc(sizeof(tipoJugador));
   List *escenarios_list = list_create(); // Lista para almacenar los escenarios
+  // Menu inicial
+  // Se muestra el menú inicial y se espera a que el usuario ingrese una opción
   do{
     mostrarMenuInicial();
     printf("Ingrese su opción: ");
@@ -436,7 +454,10 @@ int main() {
         break;
     }
   }while (opcion != '3');
+  // Liberar los recursos
   list_clean(escenarios_list);
+  map_clean(escenarios);
+  //imprimir mensaje de despedida
   limpiarPantalla();
   puts("========================================");
   puts("Gracias por usar el programa. ¡Hasta luego!");
