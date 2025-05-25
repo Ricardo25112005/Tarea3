@@ -93,6 +93,46 @@ void mostrarMenuInicial() {
   puts("3) Salir");
 }
 
+void reiniciar(Map *escenarios, tipoJugador *estado_actual) {
+  // Liberar los escenarios y sus recursos
+  MapPair *pair = map_first(escenarios);
+  while (pair) {
+      tipoGuardado *escenario = (tipoGuardado *)pair->value;
+
+      // Liberar los ítems procesados
+      if (escenario->itemProcesados) {
+          for (tipoItem *item = list_first(escenario->itemProcesados); item != NULL; item = list_next(escenario->itemProcesados)) {
+              free(item); // Liberar cada ítem
+          }
+          list_clean(escenario->itemProcesados); // Limpiar la lista
+          free(escenario->itemProcesados);       // Liberar la lista
+      }
+
+      // Liberar los ítems originales
+      if (escenario->items) {
+          list_clean(escenario->items); // Limpiar la lista
+          free(escenario->items);       // Liberar la lista
+      }
+
+      // Liberar el escenario
+      free(escenario);
+      pair = map_next(escenarios);
+  }
+  map_clean(escenarios); // Limpiar el mapa de escenarios
+
+  // Liberar los recursos del jugador
+  if (estado_actual) {
+      if (estado_actual->inventario) {
+          for (tipoItem *item = list_first(estado_actual->inventario); item != NULL; item = list_next(estado_actual->inventario)) {
+              free(item); // Liberar cada ítem del inventario
+          }
+          list_clean(estado_actual->inventario); // Limpiar la lista
+          free(estado_actual->inventario);       // Liberar la lista
+      }
+      free(estado_actual); // Liberar la estructura del jugador
+  }
+}
+
 
 void leer_escenarios(Map *escenarios, tipoJugador *escenario_actual) {
   // Intenta abrir el archivo CSV que contiene datos de películas
@@ -126,13 +166,8 @@ void leer_escenarios(Map *escenarios, tipoJugador *escenario_actual) {
     strcpy(escenario->izquierda, campos[6]);
     strcpy(escenario->derecha, campos[7]);
     strcpy(escenario->is_final, campos[8]);
-    printf("ID: %s\n", escenario->id);
-    printf("Nombre: %s\n", escenario->room_name);
-    printf("Descripción: %s\n", escenario->description);
-
     List *listaProcesada = NULL;
     if (list_first(escenario->items) != NULL) {
-      printf("Items: \n");
       listaProcesada = list_create();
       for(char *item = list_first(escenario->items); item != NULL; item = list_next(escenario->items)){
         tipoItem *itemProcesado = malloc(sizeof(tipoItem));
@@ -144,21 +179,10 @@ void leer_escenarios(Map *escenarios, tipoJugador *escenario_actual) {
         int item_weight = atoi(list_next(values));
         itemProcesado->peso = item_weight;
         list_pushBack(listaProcesada, itemProcesado);
-        printf("  - %s (%d pts, %d kg)\n", item_name, item_value, item_weight);
-    }
-    } else {
-      printf("No hay items disponibles.\n");
-    }
+      }
+    } 
     escenario->itemProcesados = listaProcesada;
-    if (strcmp(escenario->arriba, "-1") != 0) printf("Arriba: %s\n", escenario->arriba);
-    if (strcmp(escenario->abajo, "-1") != 0) printf("Abajo: %s\n", escenario->abajo);
-    if (strcmp(escenario->izquierda, "-1") != 0) printf("Izquierda: %s\n", escenario->izquierda);
-    if (strcmp(escenario->derecha, "-1") != 0) printf("Derecha: %s\n", escenario->derecha);
-    if (strcmp(escenario->is_final, "Si") == 0) printf("Es final\n");
-    else printf("No es final\n");
-    printf("========================================\n");
     map_insert(escenarios, escenario->id, escenario);
-
   }
   fclose(archivo); // Cierra el archivo después de leer todas las líneas
   escenario_actual->tiempo_restante = 100; // Reinicia el tiempo restante
@@ -172,11 +196,11 @@ void leer_escenarios(Map *escenarios, tipoJugador *escenario_actual) {
     printf("Error: Escenario con ID '1' no encontrado.\n");
     return;
   }
-  presioneTeclaParaContinuar();
 }
 
 
 void recoger_items(tipoJugador *estado_actual, Map *escenarios) {
+  limpiarPantalla();
   if (estado_actual->escenario_actual->itemProcesados == NULL || list_first(estado_actual->escenario_actual->itemProcesados) == NULL) {
       printf("No hay ítems disponibles en este escenario.\n");
       return;
@@ -225,13 +249,14 @@ void recoger_items(tipoJugador *estado_actual, Map *escenarios) {
         printf("  - %s (%d pts, %d kg)\n", item->nombre, item->valor, item->peso);
     }
     printf("Reiniciando la partida...\n");
-    presioneTeclaParaContinuar();
+    reiniciar(escenarios, estado_actual);
     leer_escenarios(escenarios, estado_actual);
     return;
   }
 }
 
 void descartar_items(tipoJugador *estado_actual, Map *escenarios) {
+  limpiarPantalla();
   if (estado_actual->inventario == NULL || list_first(estado_actual->inventario) == NULL) {
       printf("No hay ítems en el inventario para descartar.\n");
       return;
@@ -279,53 +304,16 @@ void descartar_items(tipoJugador *estado_actual, Map *escenarios) {
         printf("  - %s (%d pts, %d kg)\n", item->nombre, item->valor, item->peso);
     }
     printf("Reiniciando la partida...\n");
-    presioneTeclaParaContinuar();
+    reiniciar(escenarios, estado_actual);
     leer_escenarios(escenarios, estado_actual);
     return;
   }
 }
 
-void reiniciar(Map *escenarios, tipoJugador *estado_actual) {
-  // Liberar los escenarios y sus recursos
-  MapPair *pair = map_first(escenarios);
-  while (pair) {
-      tipoGuardado *escenario = (tipoGuardado *)pair->value;
 
-      // Liberar los ítems procesados
-      if (escenario->itemProcesados) {
-          for (tipoItem *item = list_first(escenario->itemProcesados); item != NULL; item = list_next(escenario->itemProcesados)) {
-              free(item); // Liberar cada ítem
-          }
-          list_clean(escenario->itemProcesados); // Limpiar la lista
-          free(escenario->itemProcesados);       // Liberar la lista
-      }
-
-      // Liberar los ítems originales
-      if (escenario->items) {
-          list_clean(escenario->items); // Limpiar la lista
-          free(escenario->items);       // Liberar la lista
-      }
-
-      // Liberar el escenario
-      free(escenario);
-      pair = map_next(escenarios);
-  }
-  map_clean(escenarios); // Limpiar el mapa de escenarios
-
-  // Liberar los recursos del jugador
-  if (estado_actual) {
-      if (estado_actual->inventario) {
-          for (tipoItem *item = list_first(estado_actual->inventario); item != NULL; item = list_next(estado_actual->inventario)) {
-              free(item); // Liberar cada ítem del inventario
-          }
-          list_clean(estado_actual->inventario); // Limpiar la lista
-          free(estado_actual->inventario);       // Liberar la lista
-      }
-      free(estado_actual); // Liberar la estructura del jugador
-  }
-}
 
 void avanzar_escenario(tipoJugador *estado_actual, Map *escenarios) {
+  limpiarPantalla();
   printf("Direcciones disponibles:\n");
   // Mostrar las direcciones disponibles
   int contador = 0;
@@ -376,7 +364,7 @@ void avanzar_escenario(tipoJugador *estado_actual, Map *escenarios) {
           printf("  - %s (%d pts, %d kg)\n", item->nombre, item->valor, item->peso);
       }
       printf("Reiniciando la partida...\n");
-      presioneTeclaParaContinuar();
+      reiniciar(escenarios, estado_actual);
       leer_escenarios(escenarios, estado_actual);
       return;
   }
@@ -395,28 +383,8 @@ void avanzar_escenario(tipoJugador *estado_actual, Map *escenarios) {
           printf("  - %s (%d pts, %d kg)\n", item->nombre, item->valor, item->peso);
       }
       printf("Reiniciando la partida...\n");
-      presioneTeclaParaContinuar();
       reiniciar(escenarios, estado_actual);
       leer_escenarios(escenarios, estado_actual);
-  }
-}
-
-void imprimir_conexiones(Map *escenarios) {
-  for (MapPair *pair = map_first(escenarios); pair != NULL; pair = map_next(escenarios)) {
-      tipoGuardado *guardado = (tipoGuardado *)pair->value;
-      printf("Escenario: %s\n", guardado->id);
-      if (strcmp(guardado->arriba, "-1") != 0) {
-          printf("  Arriba: %s\n", guardado->arriba);
-      }
-      if (strcmp(guardado->abajo, "-1") != 0) {
-          printf("  Abajo: %s\n", guardado->abajo);
-      }
-      if (strcmp(guardado->izquierda, "-1") != 0) {
-          printf("  Izquierda: %s\n", guardado->izquierda);
-      }
-      if (strcmp(guardado->derecha, "-1") != 0) {
-          printf("  Derecha: %s\n", guardado->derecha);
-      }
   }
 }
 
@@ -425,21 +393,6 @@ void imprimir_conexiones(Map *escenarios) {
 void iniciar_partida(Map *escenarios, tipoJugador *actual, List *escenarios_list) {
   char opcion;
   do {
-    if (strcmp(actual->escenario_actual->is_final, "Si") == 0) {
-      puts("se ha llegado al final del juego");
-      printf("Puntaje total: %d\n", actual->puntaje_acumulado);
-      printf("Tiempo restante: %d\n", actual->tiempo_restante);
-      printf("Peso total: %d\n", actual->peso_total);
-      printf("Items en inventario:\n");
-      for (tipoItem *item = list_first(actual->inventario); item != NULL; item = list_next(actual->inventario)) {
-        printf("  - %s (%d pts, %d kg)\n", item->nombre, item->valor, item->peso);
-      }
-      puts("Se Reiniciara la partida");
-      presioneTeclaParaContinuar();
-      reiniciar(escenarios, actual);
-      leer_escenarios(escenarios, actual);
-      return;
-    }
     mostrarMenuPrincipal(actual);
     printf("Ingrese su opción: ");
     scanf(" %c", &opcion);
@@ -475,6 +428,8 @@ int main() {
     switch (opcion) {
       case '1':
         leer_escenarios(escenarios, estado_actual); // Llama a la función para leer los escenarios desde el archivo CSV
+        printf("Escenarios cargados correctamente.\n");
+        presioneTeclaParaContinuar();
         break;
       case '2':
         iniciar_partida(escenarios, estado_actual, escenarios_list); // Llama a la función para iniciar la partida
