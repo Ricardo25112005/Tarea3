@@ -1,28 +1,30 @@
-#ifndef HashMap_h
-#define HashMap_h
+#ifndef MAP_H
+#define MAP_H
+#include "list.h"
+#include <stdio.h>
+#include <stdlib.h>
 
+typedef struct {
+  void *key;
+  void *value;
+} MapPair;
 
-typedef struct HashMap HashMap;
+typedef struct Map Map;
 
-typedef struct Pair {
-     char * key;
-     void * value;
-} Pair;
+Map *map_create(int (*is_equal)(void *key1, void *key2)); // unsorted map
 
-HashMap * createMap(long capacity);
+Map *sorted_map_create(int (*lower_than)(void *key1, void *key2));
 
-void insertMap(HashMap * table, char * key, void * value);
+void map_insert(Map *map, void *key, void *value);
 
-void eraseMap(HashMap * table, char * key);
+MapPair *map_remove(Map *map, void *key);
 
-Pair * searchMap(HashMap * table, char * key);
+MapPair *map_search(Map *map, void *key);
 
-Pair * firstMap(HashMap * table);
+MapPair *map_first(Map *map);
 
-Pair * nextMap(HashMap * table);
+MapPair *map_next(Map *map);
 
-void enlarge(HashMap * map);
+void map_clean(Map *map);
 
-void map_clean(HashMap *map);
-
-#endif /* HashMap_h */
+#endif /* MAP_H */
