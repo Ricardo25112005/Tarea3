@@ -189,7 +189,7 @@ void leer_escenarios(Map *escenarios, tipoJugador *escenario_actual) {
   }
   fclose(archivo); // Cierra el archivo después de leer todas las líneas
   // Inicializa el estado del jugador
-  escenario_actual->tiempo_restante = 100; // Reinicia el tiempo restante
+  escenario_actual->tiempo_restante = 30; // Reinicia el tiempo restante
   escenario_actual->peso_total = 0; // Reinicia el peso total
   escenario_actual->puntaje_acumulado = 0; // Reinicia el puntaje acumulado
   escenario_actual->inventario = list_create(); // Reinicia el inventario
