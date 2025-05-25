@@ -75,15 +75,15 @@ Este programa tiene como finalidad crear un juego en el cual tenemor que ir avan
 
 2. Inicializar Partida: En esta seccion la funcion a llamar es `void iniciar_partida(Map *escenarios, tipoJugador *actual, List *escenarios_list)` la cual nos mueve a un nuevo menu con varias opciones, ademas de mostrar el estado actual del jugador, esto principalmente para saber donde estamos ubicados y cuantos objetos tenemos y el puntaje total del jugador, el menu esta compuesto por 4 secciones:
 
-    3. Mostrar canciones del artista: en esta parte se llama a la funcion `void buscar_artista(HashMap *canciones_artist)` la cual lee el nombre del artista al cual le queremos buscar sus canciones, busca en el mapa de artista si se encuentra el artista, en caso de encontrar el artista, se muestra en pantalla la lista con todas las canciones del artista y las canciones con sus respectivas caracteristicas, si no se encuentra el artista se muestra un mensaje indicando que no hay canciones de ese artista.
+    1. Recoger Item: en esta parte se llama a la funcion `void recoger_items(tipoJugador *estado_actual, Map *escenarios)` la cual muestra todos los objetos que contiene el escenario actual, luego se pide que se ingrese el numero del item que se quiere recoger (Al mostrar los Items se les coloca un numero del uno en adelante), si se encuentra el item este es agregado al inventario del jugador y se elimina de la lista de itemsProcesados del escenario, se descuenta 1 del tiempo restante.
     
-    4. Mostrar canciones del genero: se llama a la funcion `void buscar_genero(HashMap *canciones_genres)` la cual lee el genero el cual queremos buscar, buscando si se encuentra el genero en el mapa de canciones por genero, en caso de encontrar el genro se mustra la lista de las canciones del genero con sus respectivas caracteristicas, si no se encuentra el genero se muestra en pantalla un mensaje indicando que no se encontraron canciones con ese genero.
+    2. Descartar Item: se llama a la funcion `void descartar_items(tipoJugador *estado_actual, Map *escenarios)` la cual muestra todos los item que estan almacenados en el inventario del jugador, luego se pide al jugador que ingrese el numero del item que quiere descartar (Al mostrar los Items se les coloca un numero del uno en adelante), si se encuentra el item este es eliminado del inventario del jugador, sin agregarlo nuevamente al escenario, se descuenta 1 del tiempo restante.
     
-    5. Mostrar canciones por tempo: en esta parte se llama a la funcion `void buscar_tempo(List *lista_lentas, List *lista_moderadas, List *lista_rapidas)` la cual muestra lee el tempo deseado en formato de numero (1 para lentas, 2 para moderadas y 3 para rapidas) y muestra la lista de canciones con ese tempo, mostrando las caracteristicas de cada cancion, en caso de ingresar un numero no relacionado relacionados a las listas se muestra un mensaje indicando que la opcion no es valida y regresa al menu principal.
+    3. Avanzar Escenario: en esta parte se llama a la funcion `void avanzar_escenario(tipoJugador *estado_actual, Map *escenarios)` muestra el id de los escenarios a los que se puede acceder desde el escenario actual, se le pide al usuario que ingrese el id de la sala a la cual se quiere mover, se verifica que sea una direccion valida, si la direccion es valida se mueve el escenario actual del jugador al nuevo escenario escogido con el jugador, disminuyendo su tiempo con un redondeo al superior del peso del inventario mas 1 dividido en 10.
+   
+    4. Reiniciar Escenario: es esta seccion se llama a la funcion `void reiniciar(Map *escenarios, tipoJugador *estado_actual)` la cual reinicia las listas de items de cada escenario, limpia el mapa de escenario y el estado actual del jugador, esto para volver a leer los escenarios para que todos queden en su estado inicial.
        
 Luego para compilar y ejecutar:
 
-    gcc -o tarea2 main.c TDAS/List.c TDAS/Map.c TDAS/Extra.c
-    ./tarea2 
-
-En caso de que el programa al mostrar canciones por tempo de segmentation fault reejecutar el programa(el error ocurre muy pocas veces, casi nunca).
+    gcc -o tarea3 main.c TDAS/List.c TDAS/Map.c TDAS/Extra.c
+    ./tarea3 
